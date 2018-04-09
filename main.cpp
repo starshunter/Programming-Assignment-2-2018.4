@@ -9,6 +9,12 @@ using namespace std;
 class Entity;
 class Car;
 class Passenger;
+template <typename T>
+class BagInterface;
+template <typename T>
+class Node;
+template <typename T>
+class LinkedBag;
 
 int minute_gap(string,string);
 void to_dsetination(Car,Passenger,string,int,int,char);
@@ -34,6 +40,27 @@ public:
     }
     virtual void print()=0;
     void add_tag(string s);
+    bool operator==(const Entity&)const;
+};
+
+bool Entity::operator==(const Entity &e)const
+{
+    if(!this->id.compare(e.id))
+        return true;
+    else
+        return false;
+}
+
+template <typename T>
+class BagInterface
+{
+protected:
+    virtual int current_size()const=0;
+    virtual bool isEmpty()const=0;
+    virtual bool add(const T&)=0;
+    virtual bool remove(const T&)=0;
+    virtual void clear()=0;
+    virtual bool contain(const T&)const=0;
 };
 
 class Car:public Entity
@@ -75,6 +102,177 @@ public:
     void get_onboard(string);
 };
 
+template <typename T>
+class Node
+{
+private:
+    T item;
+    Node<T> *next;
+public:
+    Node();
+    Node(const T&);
+    Node(const T&,Node<T>*);
+    void setItem(const T&);
+    void setNext(Node<T>*);
+    T getItem()const;
+    Node<T> *getNext()const;
+};
+
+template <typename T>
+class LinkedBag:public BagInterface<T>
+{
+private:
+    Node<T> *head;
+    int item_cnt;
+public:
+    LinkedBag();
+    LinkedBag(const LinkedBag<T>&);
+    virtual ~LinkedBag();
+    bool isEmpty()const;
+    int current_size()const;
+    bool add(const T&);
+    Node<T>* getPointerTo(const T&)const;
+    bool remove(const T&);
+    bool contain(const T&)const;
+    void clear();
+};
+
+template <typename T>
+LinkedBag<T>::LinkedBag():head(nullptr),item_cnt(0){}
+
+template <typename T>
+LinkedBag<T>::LinkedBag(const LinkedBag<T> &bag)
+{
+    this->item_cnt=bag->item_cnt;
+    Node<T> *origin=bag->head;
+    if(origin==nullptr)
+        this->head=nullptr;
+    else
+    {
+        this->head=new Node<T>();
+        this->head->setItem(origin->getItem());
+        Node<T> *new_ptr=this->head;
+        while(origin!=nullptr)
+        {
+            origin=origin->getNext();
+            T next_item=origin->getItem();
+            Node<T> *new_node_ptr=new Node<T>(next_item);
+            new_ptr->setNext(new_node_ptr);
+            new_ptr=new_ptr->getNext();
+        }
+        new_ptr->setNext(nullptr);
+    }
+}
+
+template <typename T>
+LinkedBag<T>::~LinkedBag()
+{
+    clear();
+}
+
+template <typename T>
+bool LinkedBag<T>::isEmpty()const
+{
+    return item_cnt==0;
+}
+
+template <typename T>
+int LinkedBag<T>::current_size()const
+{
+    return item_cnt;
+}
+
+template <typename T>
+bool LinkedBag<T>::add(const T &add_new)
+{
+    Node<T> *new_ptr=new Node<T>(add_new);
+    new_ptr->setItem(add_new);
+    new_ptr->setNext(this->head);
+    this->head=new_ptr;
+    this->item_cnt++;
+    return true;
+}
+
+template <typename T>
+Node<T>* LinkedBag<T>::getPointerTo(const T &item)const
+{
+    bool found=false;
+    Node<T> *current=this->head;
+    while(!found&&(current!=nullptr))
+    {
+        if(item==current->getItem())
+            found=true;
+        else
+            current=current->getNext();
+    }
+    return current;
+}
+
+template <typename T>
+bool LinkedBag<T>::remove(const T &item)
+{
+    Node<T> *item_ptr=getPointerTo(item);
+    bool can=!isEmpty()&&(item_ptr!=nullptr);
+    if(can)
+    {
+        item_ptr->setItem(this->head->getItem());
+        Node<T> *delete_ptr=this->head;
+        this->head=this->head->getNext();
+        delete delete_ptr;
+        delete_ptr=nullptr;
+        this->item_cnt--;
+    }
+    return can;
+}
+
+template <typename T>
+bool LinkedBag<T>::contain(const T &item)const
+{
+    return (getPointerTo(item)!=nullptr);
+}
+
+template <typename T>
+void LinkedBag<T>::clear()
+{
+    Node<T> *delete_ptr=this->head;
+    while(this->head!=nullptr)
+    {
+        this->head=this->head->getNext();
+        delete delete_ptr;
+        delete_ptr=this->head;
+    }
+    item_cnt=0;
+}
+
+template <typename T>
+Node<T>::Node():next(nullptr){}
+template <typename T>
+Node<T>::Node(const T &n):item(n),next(nullptr){}
+template <typename T>
+Node<T>::Node(const T &n,Node<T> *next):item(n),next(next){}
+template <typename T>
+void Node<T>::setItem(const T &it)
+{
+    this->item=it;
+}
+
+template <typename T>
+void Node<T>::setNext(Node<T> *next)
+{
+    this->next=next;
+}
+
+template <typename T>
+T Node<T>::getItem()const
+{
+    return item;
+}
+
+template <typename T>
+Node<T>* Node<T>::getNext()const
+{
+    return next;
+}
 
 void Entity::add_tag(string s)
 {
@@ -172,61 +370,19 @@ void Passenger::get_onboard(string time_tag)
     this->isSer=2;
 }
 
-template<typename T>
-class EntityArray
-{
-protected:
-    int capacity;
-    int cnt;
-    Entity** entityPtr;
-public:
-    EntityArray();
-    // EntityArray(const EntityArray& ea);
-    // operator=(const EntityArray& ea);
-    ~EntityArray();
-    void add(string id,bool isOn,bool isSer,int lon,int lat) throw(overflow_error);
-    void print() const noexcept;
-};
 
-template <typename T>
-EntityArray<T>::EntityArray()
-{
-    this->cnt=0;
-    this->capacity=1;
-    this->entityPtr=new Entity*[this->capacity];
-}
-
-template <typename T>
-EntityArray<T>::~EntityArray()
-{
-    for(int i=0;i<this->cnt;i++)
-        delete this->entityPtr[i];
-    delete [] this->entityPtr;
-}
-
-template <typename T>
-void EntityArray<T>::print() const noexcept
-{
-    for(int i=0;i<this->cnt;i++)
-        this->entityPtr[i]->print();
-}
-
-template <typename T>
-void EntityArray<T>::add(string id,bool isOn,bool isSer,int lon,int lat) throw(overflow_error)
-{
-    if(this->cnt<this->capacity)
-    {
-        this->entityPtr[this->cnt]=new T(id,isOn,isSer,lon,lat);
-        this->cnt++;
-    }
-    else
-        throw overflow_error("...\n");
-}
 int K,aR,bR,aL,bL,k,h,p,n;                                                                    //necessary parameter
 int profit;
 int main()
 {
-    string useless;
+    LinkedBag<Car>c;
+    Car a("vieornb",0,0,0,0,0,"nvirne");
+    c.add(a);
+    cout<<c.current_size()<<endl;
+    Node<Car> *b=c.getPointerTo(a);
+    b->getItem().print();
+    
+    /*string useless;
     char statement[1000]={0};
     //cin>>K>>aR>>bR>>aL>>bL>>k>>h>>p>>n;
     //cin.get();                                                                              //"\n"
@@ -319,7 +475,7 @@ int main()
         {
             
         }
-    }
+    }*/
     return 0;
 }
 
@@ -383,9 +539,4 @@ void to_destination(Car c,Passenger p,string time_tag,int lon,int lat,char direc
     
     c.total_score+=score;
     c.rate_cnt++;
-}
-
-void search_for_car(Passenger p,bool normal)
-{
-    
 }
