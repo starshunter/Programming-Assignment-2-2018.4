@@ -18,7 +18,8 @@ class LinkedBag;
 
 int minute_gap(string,string);
 void to_dsetination(Car,Passenger,string,int,int,char);
-void search_for_car(Passenger,bool);
+int compute_score(int r,int c,int t,int d);
+void search_for_car(Passenger,bool,char*,string);
 
 class Entity
 {
@@ -31,9 +32,10 @@ protected:
     int lon;
     int lat;
     int tag_cnt;
+    int no;
     string **tag;
 public:
-    Entity(string id,bool isOn,int isSer,int lon,int lat,string time_tag):id(id),isOn(isOn),isSer(isSer),lon(lon),lat(lat),time_tag(time_tag)
+    Entity(string id,bool isOn,int isSer,int lon,int lat,int no,string time_tag):id(id),isOn(isOn),isSer(isSer),lon(lon),lat(lat),no(no),time_tag(time_tag)
     {
         tag_cnt=0;
         tag=new string*[10000];
@@ -65,7 +67,7 @@ protected:
 
 class Car:public Entity
 {
-    friend void search_for_car(Passenger,bool);
+    friend void search_for_car(Passenger,bool,char*,string);
     friend void to_destination(Car,Passenger,string,int,int,char);
 private:
     int total_score;
@@ -73,7 +75,7 @@ private:
     char direction;
     bool normal;
 public:
-    Car(string id,bool normal,bool isOn,int isSer,int lon,int lat,string time_tag):Entity(id, isOn, isSer, lon, lat,time_tag)
+    Car(string id,bool normal,bool isOn,int isSer,int lon,int lat,int no,string time_tag):Entity(id, isOn, isSer, lon, lat,no,time_tag)
     {
         direction='H';
         this->normal=normal;
@@ -83,23 +85,30 @@ public:
     void print();
     void get_online(string,int,int,char);
     void change_direction(string,char);
-    void get_onboard(string,int,int);
+    void get_onboard(string,Passenger);
+    void connect_to_passenger(Passenger p);
+    string customer()
+    {
+        return connect_to;
+    }
 };
 
 class Passenger:public Entity
 {
-    friend void search_for_car(Passenger,bool);
+    friend void Car::get_onboard(string,Passenger);
+    friend void search_for_car(Passenger,bool,char*,string);
     friend void to_destination(Car,Passenger,string,int,int,char);
 private:
     int wait;
 public:
-    Passenger(string id,bool isOn,int isSer,int lon,int lat,string time_tag):Entity(id, isOn, isSer, lon, lat,time_tag)
+    Passenger(string id,bool isOn,int isSer,int lon,int lat,int no,string time_tag):Entity(id, isOn, isSer, lon, lat,no,time_tag)
     {
         wait=0;
     }
     void print();
-    void get_online(string,string);
+    void get_online(string,int,int,string);
     void get_onboard(string);
+    void connect_to_car(Car c);
 };
 
 template <typename T>
@@ -121,6 +130,7 @@ public:
 template <typename T>
 class LinkedBag:public BagInterface<T>
 {
+    friend void search_for_car(Passenger,bool,char*,string);
 private:
     Node<T> *head;
     int item_cnt;
@@ -319,25 +329,29 @@ void Car::change_direction(string time_tag,char direction)
     if(!this->normal)
         duration*=2;
     if(this->direction=='N')
-        this->lon=(double)this->lon+duration;
+        this->lat=(double)this->lat+duration;
     else if(this->direction=='S')
-        this->lon=(double)this->lon-duration;
+        this->lat=(double)this->lat-duration;
     else if(this->direction=='E')
-        this->lon=(double)this->lat+duration;
+        this->lon=(double)this->lon+duration;
     else if(this->direction=='W')
-        this->lon=(double)this->lat-duration;
+        this->lon=(double)this->lon-duration;
     
     this->direction=direction;
     this->time_tag=time_tag;
 }
-void Car::get_onboard(string time_tag,int lon,int lat)
+void Car::get_onboard(string time_tag,Passenger p)
 {
     this->time_tag=time_tag;
-    this->lon=lon;
-    this->lat=lat;
+    this->lon=p.lon;
+    this->lat=p.lat;
     this->isSer=3;
 }
 
+void Car::connect_to_passenger(Passenger p)
+{
+    this->isSer=2;
+}
 
 void Passenger::print()
 {
@@ -356,12 +370,14 @@ void Passenger::print()
         cout<<" "<<this->connect_to;
     cout<<endl;
 }
-void Passenger::get_online(string time_tag,string id)
+void Passenger::get_online(string time_tag,int lon,int lat,string id)
 {
     this->isOn=true;
     this->isSer=1;
     this->time_tag=time_tag;
     this->connect_to=id;
+    this->lon=lon;
+    this->lat=lat;
 }
 void Passenger::get_onboard(string time_tag)
 {
@@ -370,22 +386,25 @@ void Passenger::get_onboard(string time_tag)
     this->isSer=2;
 }
 
+void Passenger::connect_to_car(Car c)
+{
+    this->isSer=1;
+}
 
-int K,aR,bR,aL,bL,k,h,p,n;                                                                    //necessary parameter
+int K,aR,bR,aL,bL,k,h,p,n,car_no=1,passenger_no=1;                                                                    //necessary parameter
 int profit;
+LinkedBag<Car>car_registered;
+LinkedBag<Passenger>passenger_registered;
+LinkedBag<Car>car_online;
+LinkedBag<Passenger>passenger_online;
+LinkedBag<Car>car_in_service;
+LinkedBag<Passenger>passenger_in_service;
 int main()
 {
-    LinkedBag<Car>c;
-    Car a("vieornb",0,0,0,0,0,"nvirne");
-    c.add(a);
-    cout<<c.current_size()<<endl;
-    Node<Car> *b=c.getPointerTo(a);
-    b->getItem().print();
-    
-    /*string useless;
+    string useless;
     char statement[1000]={0};
-    //cin>>K>>aR>>bR>>aL>>bL>>k>>h>>p>>n;
-    //cin.get();                                                                              //"\n"
+    cin>>K>>aR>>bR>>aL>>bL>>k>>h>>p>>n;
+    cin.get();                                                                              //"\n"
     getline(cin,useless);
     while(cin.getline(statement,sizeof(statement)))
     {
@@ -399,7 +418,19 @@ int main()
             string id=p;
             p=strtok(NULL,")");
             char *tags=p;
-            //add tags
+            Passenger new_p(id,0,0,0,0,passenger_no,statement_time);
+            char *add_tag=strtok(tags,",");
+            while(add_tag!=nullptr)
+            {
+                new_p.add_tag(add_tag);
+                add_tag=strtok(NULL,",");
+            }
+            if(!passenger_registered.contain(new_p))
+            {
+                passenger_registered.add(new_p);
+                passenger_no++;
+            }
+            cout<<"Aa"<<endl;
         }
         else if(!strcmp(operation,"NC"))
         {
@@ -409,7 +440,22 @@ int main()
             char *tags=p;
             //add tags
             p=strtok(NULL," ");
-            string direction=p;
+            bool normal=false;
+            if(!strcmp(p,"R"))
+                normal=true;
+            Car new_c(id,normal,0,0,0,0,car_no,statement_time);
+            char *add_tag=strtok(tags,",");
+            while(add_tag!=nullptr)
+            {
+                new_c.add_tag(add_tag);
+                add_tag=strtok(NULL,",");
+            }
+            if(!car_registered.contain(new_c))
+            {
+                car_registered.add(new_c);
+                car_no++;
+            }
+            cout<<"Aa"<<endl;
         }
         else if(!strcmp(operation,"OC"))
         {
@@ -418,14 +464,35 @@ int main()
             p=strtok(NULL,")");
             char *coordinate=p;
             p=strtok(NULL," ");
-            string direction=p;
+            char direction=*p;
+            int lon=atoi(strtok(coordinate,","));
+            int lat=atoi(strtok(NULL,","));
+            Car search_test(id,false,0,0,lon,lat,0,statement_time);
+            if(car_registered.contain(search_test)&&!car_online.contain(search_test))
+            {
+                Node<Car>*to_online=car_registered.getPointerTo(search_test);
+                Car c_get_online=to_online->getItem();
+                c_get_online.get_online(statement_time,lon,lat,direction);
+                car_online.add(c_get_online);
+            }
+            cout<<"Aa"<<endl;
         }
         else if(!strcmp(operation,"EC"))
         {
             char *p=strtok(NULL,"(");
             string id=p;
             p=strtok(NULL,")");
-            string direction=p;
+            char direction=*p;
+            Car search_test(id,false,0,0,0,0,0,statement_time);
+            if(car_online.contain(search_test))
+            {
+                Node<Car>*to_change=car_online.getPointerTo(search_test);
+                Car c_change_direction=to_change->getItem();
+                c_change_direction.change_direction(statement_time,direction);
+                car_online.remove(to_change->getItem());
+                car_online.add(c_change_direction);
+            }
+            cout<<"Aa"<<endl;
         }
         else if(!strcmp(operation,"OP"))
         {
@@ -435,13 +502,37 @@ int main()
             char *coordinate=p;
             p=strtok(NULL," ");
             bool normal=false;
-            if(!strcmp(p,"N"))
+            if(!strcmp(p,"R"))
                 normal=true;
+            Passenger search_test(id,0,0,0,0,0,statement_time);
+            if(passenger_registered.contain(search_test)&&!passenger_online.contain(search_test))
+            {
+                Node<Passenger>*target_p=passenger_registered.getPointerTo(search_test);
+                Passenger p_online=target_p->getItem();
+                search_for_car(p_online,normal,coordinate,statement_time);
+            }
+            cout<<"Aa"<<endl;
         }
         else if(!strcmp(operation,"CP"))
         {
             char *p=strtok(NULL," ");
             string id=p;
+            Car search_test(id,false,0,0,0,0,0,statement_time);
+            if(car_in_service.contain(search_test))
+            {
+                Node<Car>*catch_c=car_in_service.getPointerTo(search_test);
+                Passenger search_test(catch_c->getItem().customer(),0,0,0,0,0,statement_time);
+                Node<Passenger>*catch_p=passenger_in_service.getPointerTo(search_test);
+                Car temp_c=catch_c->getItem();
+                Passenger temp_p=catch_p->getItem();
+                car_in_service.remove(temp_c);
+                passenger_in_service.remove(temp_p);
+                temp_c.get_onboard(statement_time,temp_p);
+                temp_p.get_onboard(statement_time);
+                car_in_service.add(temp_c);
+                passenger_in_service.add(temp_p);
+            }
+            cout<<"Aa"<<endl;
         }
         else if(!strcmp(operation,"AD"))
         {
@@ -451,31 +542,36 @@ int main()
             char *coordinate=p;
             p=strtok(NULL," ");
             string direction=p;
+            cout<<"Aa"<<endl;
         }
         else if(!strcmp(operation,"LC"))
         {
             char *p=strtok(NULL," ");
             string id=p;
+            cout<<"Aa"<<endl;
         }
         else if(!strcmp(operation,"SC"))
         {
             char *p=strtok(NULL," ");
             string id=p;
+            cout<<"Aa"<<endl;
         }
         else if(!strcmp(operation,"SP"))
         {
             char *p=strtok(NULL," ");
             string id=p;
+            cout<<"Aa"<<endl;
         }
         else if(!strcmp(operation,"SR"))
         {
             cout<<profit<<endl;
+            cout<<"Aa"<<endl;
         }
         else if(!strcmp(operation,"ZZ"))
         {
-            
+            cout<<"Aa"<<endl;
         }
-    }*/
+    }
     return 0;
 }
 
@@ -539,4 +635,91 @@ void to_destination(Car c,Passenger p,string time_tag,int lon,int lat,char direc
     
     c.total_score+=score;
     c.rate_cnt++;
+}
+
+int compute_score(int r,int c,int t,int d)
+{
+    int ans=r-5*c+5*t-5*d;
+    return ans;
+}
+
+void search_for_car(Passenger p,bool normal,char *coordinate,string time_tag)
+{
+    Node<Car>*current=car_online.head;
+    Car *best_car=nullptr;
+    int best=-10000000;
+    p.lon=atoi(strtok(coordinate,","));
+    p.lat=atoi(strtok(NULL,","));
+    //============================================================================================
+    while(current!=nullptr)
+    {
+        if(current->getItem().normal!=normal)
+        {
+            current=current->getNext();
+            continue;
+        }
+        Car car_current=current->getItem();
+        int duration=minute_gap(car_current.time_tag,time_tag);
+        if(!car_current.normal)
+            duration*=2;
+        if(car_current.direction=='N')
+            car_current.lat+=duration;
+        else if(car_current.direction=='S')
+            car_current.lat-=duration;
+        else if(car_current.direction=='E')
+            car_current.lon+=duration;
+        else if(car_current.direction=='W')
+            car_current.lon+=duration;
+        //============================================================================================
+        int distance=abs(p.lon-current->getItem().lon)+abs(p.lat-current->getItem().lat);
+        if(distance>4)
+            break;
+        int same_tag=0;
+        for(int i=0;i<p.tag_cnt;i++)
+            for(int j=0;j<current->getItem().tag_cnt;j++)
+                if(p.tag[i]->compare(*current->getItem().tag[j]))
+                    same_tag++;
+        int a=current->getItem().total_score;
+        int b=current->getItem().rate_cnt;
+        int the_score=compute_score(a,b,same_tag,distance);
+        //============================================================================================
+        if(the_score>best)
+        {
+            best=the_score;
+            best_car=&car_current;
+        }
+        else if(the_score==best)
+        {
+            int distance_bset=abs(p.lon-best_car->lon)+abs(p.lat-best_car->lat);
+            if(distance<distance_bset)
+            {
+                best=the_score;
+                best_car=&car_current;
+            }
+            else if(distance_bset==distance)
+            {
+                if(current->getItem().no<best_car->no)
+                {
+                    best=the_score;
+                    best_car=&car_current;
+                }
+            }
+        }
+        //============================================================================================
+        current=current->getNext();
+    }
+    if(best_car==nullptr)
+        return;
+    //============================================================================================
+    Car to_service=*best_car;
+    to_service.isOn=true;
+    to_service.isSer=2;
+    to_service.connect_to=p.id;
+    to_service.time_tag=time_tag;
+    p.get_online(time_tag,p.lon,p.lat,to_service.id);
+    car_in_service.add(to_service);
+    passenger_in_service.add(p);
+    car_online.remove(to_service);
+    passenger_online.remove(p);
+    //============================================================================================
 }
