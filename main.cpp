@@ -4,6 +4,7 @@
 #include <cstring>
 #include <string>
 #include <cmath>
+#include <fstream>
 using namespace std;
 
 class Entity;
@@ -429,13 +430,15 @@ LinkedBag<Car>car_in_service;
 LinkedBag<Passenger>passenger_in_service;
 int main()
 {
+    ifstream myfile("test.txt");
     string useless;
     char statement[1000]={0};
-    cin>>K>>aR>>bR>>aL>>bL>>k>>h>>p>>n;
-    cin.get();                                                                              //"\n"
-    getline(cin,useless);
-    while(cin.getline(statement,sizeof(statement)))
+    myfile>>K>>aR>>bR>>aL>>bL>>k>>h>>p>>n;
+    myfile.get();                                                                              //"\n"
+    getline(myfile,useless);
+    while(!myfile.eof())
     {
+        myfile.getline(statement,sizeof(statement));
         if(strlen(statement)==0)
             break;
         char *statement_time=strtok(statement," ");
@@ -464,10 +467,16 @@ int main()
         {
             char *p=strtok(NULL,"(");
             string id=p;
-            p=strtok(NULL,")");
-            char *tags=p;
-            //add tags
-            p=strtok(NULL," ");
+            p=strtok(NULL,"");
+            char *tags;
+            if(p[0]==')')
+            {
+                tags=nullptr;
+                p=p+1;
+            }
+            else
+                tags=strtok(p,")");
+            p=strtok(p," ");
             bool normal=false;
             if(!strcmp(p,"R"))
                 normal=true;
@@ -742,17 +751,18 @@ void search_for_car(Passenger p,bool normal,char *coordinate,string time_tag)
             car_current.lon+=duration;
         else if(car_current.direction=='W')
             car_current.lon+=duration;
+        car_current.time_tag=time_tag;
         //============================================================================================
-        int distance=abs(p.lon-current->getItem().lon)+abs(p.lat-current->getItem().lat);
-        if(distance>4)
+        int distance=abs(p.lon-car_current.lon)+abs(p.lat-car_current.lat);
+        if(distance>K)
             break;
         int same_tag=0;
         for(int i=0;i<p.tag_cnt;i++)
-            for(int j=0;j<current->getItem().tag_cnt;j++)
-                if(p.tag[i]->compare(*current->getItem().tag[j]))
+            for(int j=0;j<car_current.tag_cnt;j++)
+                if(p.tag[i]->compare(*car_current.tag[j]))
                     same_tag++;
-        int a=current->getItem().total_score;
-        int b=current->getItem().rate_cnt;
+        int a=car_current.total_score;
+        int b=car_current.rate_cnt;
         int the_score=compute_score(a,b,same_tag,distance);
         //============================================================================================
         if(the_score>best)
@@ -770,7 +780,7 @@ void search_for_car(Passenger p,bool normal,char *coordinate,string time_tag)
             }
             else if(distance_bset==distance)
             {
-                if(current->getItem().no<best_car->no)
+                if(car_current.no<best_car->no)
                 {
                     best=the_score;
                     best_car=&car_current;
