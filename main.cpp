@@ -21,9 +21,9 @@ int minute_gap(string,string);
 void to_dsetination(Car,Passenger,string,char*,char);
 int compute_score(int r,int c,int t,int d);
 void search_for_car(Passenger,bool,char*,string);
-bool check_CP(Car,Passenger,string);
-bool check_AD(Car,Passenger,string);
-class Entity
+void check_CP(Car,Passenger,string)throw(logic_error);
+void check_AD(Car,Passenger,string)throw(logic_error);
+class Entity                                                //Entity class
 {
 protected:
     string id;
@@ -44,10 +44,9 @@ public:
     virtual void print()=0;
     void add_tag(string s);
     bool operator==(const Entity&)const;
-    //~Entity();
 };
 
-bool Entity::operator==(const Entity &e)const
+bool Entity::operator==(const Entity &e)const               //Entity comparison
 {
     if(!this->id.compare(e.id))
         return true;
@@ -55,7 +54,7 @@ bool Entity::operator==(const Entity &e)const
         return false;
 }
 
-template <typename T>
+template <typename T>                                       //Bag interface, use template
 class BagInterface
 {
 protected:
@@ -67,12 +66,12 @@ protected:
     virtual bool contain(const T&)const=0;
 };
 
-class Car:public Entity
+class Car:public Entity                                     //Car
 {
     friend void search_for_car(Passenger,bool,char*,string);
     friend void to_destination(Car,Passenger,string,char*,char);
-    friend bool check_CP(Car,Passenger,string);
-    friend bool check_AD(Car,Passenger,string);
+    friend void check_CP(Car,Passenger,string)throw(logic_error);
+    friend void check_AD(Car,Passenger,string)throw(logic_error);
 private:
     int total_score;
     int rate_cnt;
@@ -93,7 +92,7 @@ public:
     void change_direction(string);
     void get_onboard(string,Passenger);
     void connect_to_passenger(Passenger p);
-    string customer()
+    string customer()                                       //return passeger name
     {
         return connect_to;
     }
@@ -106,15 +105,15 @@ public:
     }
 };
 
-class Passenger:public Entity
+class Passenger:public Entity                               //Passenger
 {
     friend void Car::get_onboard(string,Passenger);
     friend void search_for_car(Passenger,bool,char*,string);
     friend void to_destination(Car,Passenger,string,char*,char);
-    friend bool check_CP(Car,Passenger,string);
-    friend bool check_AD(Car,Passenger,string);
+    friend void check_CP(Car,Passenger,string)throw(logic_error);
+    friend void check_AD(Car,Passenger,string)throw(logic_error);
 private:
-    int wait;
+    int wait;                                               //the time from connecting to a car to gettiing on board
 public:
     Passenger(string id,bool isOn,int isSer,int lon,int lat,int no,string time_tag):Entity(id, isOn, isSer, lon, lat,no,time_tag)
     {
@@ -128,7 +127,7 @@ public:
     void get_offline();
 };
 
-template <typename T>
+template <typename T>                                       //Node
 class Node
 {
 private:
@@ -145,12 +144,12 @@ public:
 };
 
 template <typename T>
-class LinkedBag:public BagInterface<T>
+class LinkedBag:public BagInterface<T>                      //Linked bag
 {
     friend void to_destination(Car,Passenger,string,char*,char);
     friend void search_for_car(Passenger,bool,char*,string);
-    friend bool check_CP(Car,Passenger,string);
-    friend bool check_AD(Car,Passenger,string);
+    friend void check_CP(Car,Passenger,string)throw(logic_error);
+    friend void check_AD(Car,Passenger,string)throw(logic_error);
 private:
     Node<T> *head;
     int item_cnt;
@@ -166,7 +165,7 @@ public:
     bool contain(const T&)const;
     void clear();
 };
-
+//LinkedBag instance function======================================================================================
 template <typename T>
 LinkedBag<T>::LinkedBag():head(nullptr),item_cnt(0){}
 
@@ -273,7 +272,8 @@ void LinkedBag<T>::clear()
     }
     item_cnt=0;
 }
-
+//LinkedBag instance function=======================================================================================
+//Node instance function============================================================================================
 template <typename T>
 Node<T>::Node():next(nullptr){}
 template <typename T>
@@ -303,12 +303,13 @@ Node<T>* Node<T>::getNext()const
 {
     return next;
 }
-
+//Node instance function============================================================================================
 void Entity::add_tag(string s)
 {
     this->tag[this->tag_cnt]=s;
     this->tag_cnt++;
 }
+//Car instance function=============================================================================================
 Car::Car(const Car &c):Entity(c)
 {
     this->total_score=c.total_score;
@@ -403,6 +404,8 @@ void Car::leave_customer(string time_tag,int lon,int lat,int score,char directio
     this->total_score+=score;
     this->rate_cnt++;
 }
+//Car instance function=============================================================================================
+//Passenger instance function=======================================================================================
 Passenger::Passenger(const Passenger &p):Entity(p)
 {
     this->wait=p.wait;
@@ -416,7 +419,7 @@ void Passenger::print()
     {
         if(this->isSer==1)
             cout<<"1";
-        else
+        else if(this->isSer==2)
             cout<<"2";
     }
     else
@@ -454,33 +457,31 @@ void Passenger::get_offline()
     this->connect_to="";
     this->wait=0;
 }
-int K,aR,bR,aL,bL,k,h,p,n,car_no=1,passenger_no=1;                                                                    //necessary parameter
+//Passenger instance function=======================================================================================
+
+int K,aR,bR,aL,bL,k,h,p,n,car_no=1,passenger_no=1;          //necessary variable
 int profit=0,serve_cnt=0;
-LinkedBag<Car>car_registered;
-LinkedBag<Passenger>passenger_registered;
-LinkedBag<Car>car_online;
-LinkedBag<Car>car_in_service;
-LinkedBag<Passenger>passenger_in_service;
+LinkedBag<Car>car_registered;                               //registered car
+LinkedBag<Passenger>passenger_registered;                   //registered passenger
+LinkedBag<Car>car_online;                                   //car online and not in service
+LinkedBag<Car>car_in_service;                               //car in service
+LinkedBag<Passenger>passenger_in_service;                   //passenger in service
+
 int main()
 {
-    //ifstream myfile("test.txt");
     string useless;
     char statement[1000]={0};
     cin>>K>>aR>>bR>>aL>>bL>>k>>h>>p>>n;
-    cin.get();
-    //myfile>>K>>aR>>bR>>aL>>bL>>k>>h>>p>>n;
-    //myfile.get();                                                                              //"\n"
-    //getline(myfile,useless);
+    cin.get();                                              //'\n'
     getline(cin,useless);
     while(cin.getline(statement,sizeof(statement)))
-    //while(!myfile.eof())
     {
-        //myfile.getline(statement,sizeof(statement));
         if(strlen(statement)==0)
             break;
         char *statement_time=strtok(statement," ");
         char *operation=strtok(NULL,":");
-        if(!strcmp(operation,"NP"))
+        
+        if(!strcmp(operation,"NP"))                         //new passenger
         {
             char *p=strtok(NULL,"(");
             string id=p;
@@ -493,21 +494,19 @@ int main()
                 new_p.add_tag(add_tag);
                 add_tag=strtok(NULL,",");
             }
-            if(!passenger_registered.contain(new_p))
+            if(!passenger_registered.contain(new_p))        //if the passenger hasn't registered
             {
                 passenger_registered.add(new_p);
                 passenger_no++;
             }
-            
-            //cout<<"Aa"<<endl;
         }
-        else if(!strcmp(operation,"NC"))
+        else if(!strcmp(operation,"NC"))                    //new car
         {
             char *p=strtok(NULL,"(");
             string id=p;
             p=strtok(NULL,"");
             char *tags;
-            if(p[0]==')')
+            if(p[0]==')')                                   //there is no tag
             {
                 tags=nullptr;
                 p=p+1;
@@ -518,7 +517,7 @@ int main()
                 p=strtok(NULL," ");
             }
             bool normal=true;
-            if(!strcmp(p,"L"))
+            if(!strcmp(p,"L"))                              //if the car is not normal
                 normal=false;
             Car new_c(id,normal,0,0,0,0,car_no,statement_time);
             char *add_tag=strtok(tags,",");
@@ -527,14 +526,13 @@ int main()
                 new_c.add_tag(add_tag);
                 add_tag=strtok(NULL,",");
             }
-            if(!car_registered.contain(new_c))
+            if(!car_registered.contain(new_c))              //if the car hasn't registered
             {
                 car_registered.add(new_c);
                 car_no++;
             }
-            //cout<<"Aa"<<endl;
         }
-        else if(!strcmp(operation,"OC"))
+        else if(!strcmp(operation,"OC"))                    //car get online
         {
             char *p=strtok(NULL,"(");
             string id=p;
@@ -545,31 +543,29 @@ int main()
             int lon=atoi(strtok(coordinate,","));
             int lat=atoi(strtok(NULL,","));
             Car search_test(id,false,0,0,lon,lat,0,statement_time);
-            if(car_registered.contain(search_test)&&(!car_online.contain(search_test)&&!car_in_service.contain(search_test)))
+            if(car_registered.contain(search_test)&&(!car_online.contain(search_test)&&!car_in_service.contain(search_test)))       //if the car is registered and is not online
             {
                 Car c_get_online=car_registered.getPointerTo(search_test)->getItem();
                 c_get_online.get_online(statement_time,lon,lat,direction);
                 car_online.add(c_get_online);
             }
-            //cout<<"Aa"<<endl;
         }
-        else if(!strcmp(operation,"EC"))
+        else if(!strcmp(operation,"EC"))                    //car changes direction
         {
             char *p=strtok(NULL,"(");
             string id=p;
             p=strtok(NULL,")");
             char direction=*p;
             Car search_test(id,false,0,0,0,0,0,statement_time);
-            if(car_online.contain(search_test))
+            if(car_online.contain(search_test))             //if the car is online
             {
                 Car c_change_direction=car_online.getPointerTo(search_test)->getItem();
                 c_change_direction.change_direction(statement_time,direction);
                 car_online.remove(c_change_direction);
                 car_online.add(c_change_direction);
             }
-            //cout<<"Aa"<<endl;
         }
-        else if(!strcmp(operation,"OP"))
+        else if(!strcmp(operation,"OP"))                    //passenger get online
         {
             char *p=strtok(NULL,"(");
             string id=p;
@@ -580,27 +576,27 @@ int main()
             if(!strcmp(p,"L"))
                 normal=false;
             Passenger search_test(id,0,0,0,0,0,statement_time);
-            if(passenger_registered.contain(search_test)&&!passenger_in_service.contain(search_test))
+            if(passenger_registered.contain(search_test)&&!passenger_in_service.contain(search_test))//if the passenger is registered and is not in service
             {
                 Passenger p_online=passenger_registered.getPointerTo(search_test)->getItem();
                 search_for_car(p_online,normal,coordinate,statement_time);
             }
-            //cout<<"Aa"<<endl;
         }
-        else if(!strcmp(operation,"CP"))
+        else if(!strcmp(operation,"CP"))                    //the car get the passenger
         {
             char *p=strtok(NULL," ");
             string id=p;
             Car search_test(id,false,0,0,0,0,0,statement_time);
-            if(car_in_service.contain(search_test))
+            if(car_in_service.contain(search_test))         //if the car is online
             {
                 Node<Car>*catch_c=car_in_service.getPointerTo(search_test);
                 Passenger search_test(catch_c->getItem().customer(),0,0,0,0,0,statement_time);
                 Node<Passenger>*catch_p=passenger_in_service.getPointerTo(search_test);
                 Car temp_c=catch_c->getItem();
                 Passenger temp_p=catch_p->getItem();
-                if(check_CP(temp_c,temp_p,statement_time))
+                try
                 {
+                    check_CP(temp_c,temp_p,statement_time);  //if the statement is correct
                     car_in_service.remove(temp_c);
                     passenger_in_service.remove(temp_p);
                     temp_c.get_onboard(statement_time,temp_p);
@@ -608,10 +604,12 @@ int main()
                     car_in_service.add(temp_c);
                     passenger_in_service.add(temp_p);
                 }
+                catch(logic_error)
+                {
+                }
             }
-            //cout<<"Aa"<<endl;
         }
-        else if(!strcmp(operation,"AD"))
+        else if(!strcmp(operation,"AD"))                    //get to the destination
         {
             char *p=strtok(NULL,"(");
             string id=p;
@@ -620,17 +618,22 @@ int main()
             p=strtok(NULL," ");
             char direction=*p;
             Car search_test(id,false,0,0,0,0,0,statement_time);
-            if(car_in_service.contain(search_test))
+            if(car_in_service.contain(search_test))         //if the car is in service
             {
                 Car destination_c=car_in_service.getPointerTo(search_test)->getItem();
                 Passenger search_test_p(destination_c.customer(),0,0,0,0,0,statement_time);
                 Passenger destination_p=passenger_in_service.getPointerTo(search_test_p)->getItem();
-                if(check_AD(destination_c,destination_p,statement_time))
-                   to_destination(destination_c,destination_p,statement_time,coordinate,direction);
+                try
+                {
+                    check_AD(destination_c,destination_p,statement_time);
+                    to_destination(destination_c,destination_p,statement_time,coordinate,direction);
+                }
+                catch(logic_error e)
+                {
+                }
             }
-            //cout<<"Aa"<<endl;
         }
-        else if(!strcmp(operation,"LC"))
+        else if(!strcmp(operation,"LC"))                    //car get offline
         {
             char *p=strtok(NULL," ");
             string id=p;
@@ -643,9 +646,8 @@ int main()
                 car_registered.remove(off_c);
                 car_registered.add(off_c);
             }
-            //cout<<"Aa"<<endl;
         }
-        else if(!strcmp(operation,"SC"))
+        else if(!strcmp(operation,"SC"))                    //print the statement of car
         {
             char *p=strtok(NULL," ");
             string id=p;
@@ -655,51 +657,48 @@ int main()
                 Car temp=car_in_service.getPointerTo(search_test)->getItem();
                 temp.print();
             }
-            else if(car_online.contain(search_test))
+            else if(car_online.contain(search_test)&&!car_in_service.contain(search_test))
             {
                 Car temp=car_online.getPointerTo(search_test)->getItem();
                 temp.change_direction(statement_time);
                 temp.print();
             }
-            else if(car_registered.contain(search_test))
+            else if(car_registered.contain(search_test)&&!car_online.contain(search_test)&&!car_in_service.contain(search_test))
             {
                 Car temp=car_registered.getPointerTo(search_test)->getItem();
                 temp.print();
             }
             else
                 cout<<id<<": no registration!"<<endl;
-            //cout<<"Aa"<<endl;
         }
-        else if(!strcmp(operation,"SP"))
+        else if(!strcmp(operation,"SP"))                    //print the statement of passenger
         {
             char *p=strtok(NULL," ");
             string id=p;
             Passenger search_test(id,false,0,0,0,0,statement_time);
             if(passenger_in_service.contain(search_test))
                 passenger_in_service.getPointerTo(search_test)->getItem().print();
-            else if(passenger_registered.contain(search_test))
+            else if(passenger_registered.contain(search_test)&&!passenger_in_service.contain(search_test))
                 passenger_registered.getPointerTo(search_test)->getItem().print();
             else
                 cout<<id<<": no registration!"<<endl;
-            //cout<<"Aa"<<endl;
         }
         else if(!strcmp(operation,"SR"))
         {
             cout<<profit<<endl;
-            //cout<<"Aa"<<endl;
         }
-        else if(!strcmp(operation,"ZZ"))
+        else if(!strcmp(operation,"ZZ"))                    //system crash
         {
             car_in_service.clear();
             car_online.clear();
             passenger_in_service.clear();
-            //cout<<"Aa"<<endl;
         }
+        memset(statement,0,sizeof(statement));
     }
     return 0;
 }
 
-int minute_gap(string was,string now)
+int minute_gap(string was,string now)                       //the time gap between two time tags in minute
 {
     int was_h,was_m,now_h,now_m;
     string a,b;
@@ -714,7 +713,7 @@ int minute_gap(string was,string now)
     int sum=(now_h-was_h)*60+now_m-was_m;
     return sum;
 }
-
+                                                            //when car reach destination
 void to_destination(Car c,Passenger p,string time_tag,char *coordinate,char direction)
 {
     int lon=atoi(strtok(coordinate,","));
@@ -723,29 +722,29 @@ void to_destination(Car c,Passenger p,string time_tag,char *coordinate,char dire
     int distance=abs(lon-c.lon)+abs(lat-c.lat);
     int t_duration=distance;
     int score=4;
-    if(!c.normal)
+    if(!c.normal)                                           //estimate duration if the car is not a normal car
     {
-        if(distance%2==1)
+        if(t_duration%2==1)
             t_duration=(t_duration+1)/2;
         else
             t_duration/=2;
     }
     bool free=false;
-    if(p.wait>20)
+    if(p.wait>20)                                           //if the passenger wait longer than 20 minute before the car pick him up
         free=true;
-    if(duration>3*t_duration)
+    if(duration>3*t_duration)                               //duration > 3*estimate duration
         free=true;
     
-    if(p.wait>20)
+    if(p.wait>20)                                           //wait > 20 min
         score-=2;
-    else if(10<p.wait&&p.wait<=20)
+    else if(10<p.wait&&p.wait<=20)                          //10 < wait <=20
         score-=1;
-    if(duration>3*t_duration)
+    if(duration>3*t_duration)                               //duration > 3*actual duration
         score-=2;
-    else if(duration>2*t_duration&&duration<=3*t_duration)
+    else if(duration>2*t_duration&&duration<=3*t_duration)  //estimate duration*2 < duration <= 2*estimate duration
         score-=1;
     
-    for(int i=0;i<c.tag_cnt;i++)
+    for(int i=0;i<c.tag_cnt;i++)                            //how many tags are the same
         for(int j=0;j<p.tag_cnt;j++)
             if(!c.tag[i].compare(p.tag[j]))
                 score++;
@@ -755,29 +754,30 @@ void to_destination(Car c,Passenger p,string time_tag,char *coordinate,char dire
     else if(score<1)
         score=1;
     
-    if(c.normal&&!free)
-        profit+=aR+bR*distance;
-    else if(!c.normal&&!free)
-        profit+=aL+bL*distance;
-    c.leave_customer(time_tag,lon,lat,score,direction);
+    if(c.normal&&!free)                                     //normal car
+        profit+=(aR+bR*distance);
+    else if(!c.normal&&!free)                               //not normal car
+        profit+=(aL+bL*distance);
+    
+    c.leave_customer(time_tag,lon,lat,score,direction);     //let car drop the customer and set new direction
     car_registered.remove(c);
     car_in_service.remove(c);
     car_online.add(c);
     c.get_offline(time_tag);
     car_registered.add(c);
-    p.get_offline();
+    p.get_offline();                                        //passenger offline
     passenger_in_service.remove(p);
     passenger_registered.remove(p);
     passenger_registered.add(p);
     serve_cnt++;
 }
 
-int compute_score(int r,int c,int t,int d)
+int compute_score(int r,int c,int t,int d)                  //the score formula
 {
     int ans=r-k*c+h*t-p*d;
     return ans;
 }
-
+                                                            //passenger search for car that is empty
 void search_for_car(Passenger p,bool normal,char *coordinate,string time_tag)
 {
     Node<Car> *current=car_online.head;
@@ -785,38 +785,38 @@ void search_for_car(Passenger p,bool normal,char *coordinate,string time_tag)
     int best=-10000000;
     p.lon=atoi(strtok(coordinate,","));
     p.lat=atoi(strtok(NULL,","));
-    //============================================================================================
-    while(current!=nullptr)
+    
+    while(current!=nullptr)                                 //go through every car online and is empty
     {
-        if(current->getItem().normal!=normal)
+        if(current->getItem().normal!=normal)               //the car's type is correct
         {
             current=current->getNext();
             continue;
         }
         Car car_current=current->getItem();
         car_current.change_direction(time_tag,car_current.direction);
-        //============================================================================================
+        
         int distance=abs(p.lon-car_current.lon)+abs(p.lat-car_current.lat);
-        if(distance>K)
+        if(distance>K)                                      //excceed K
         {
             current=current->getNext();
             continue;
         }
         int same_tag=0;
-        for(int i=0;i<p.tag_cnt;i++)
+        for(int i=0;i<p.tag_cnt;i++)                        //how many tags are the same
             for(int j=0;j<car_current.tag_cnt;j++)
                 if(!(p.tag[i]).compare(car_current.tag[j]))
                     same_tag++;
         int a=car_current.total_score;
         int b=car_current.rate_cnt;
-        int the_score=compute_score(a,b,same_tag,distance);
-        //============================================================================================
+        int the_score=compute_score(a,b,same_tag,distance); //compute the score
+        
         if(the_score>best)
         {
             best=the_score;
             best_car=current;
         }
-        else if(the_score==best)
+        else if(the_score==best)                            //if the score ties the best score
         {
             int distance_bset=abs(p.lon-best_car->getItem().lon)+abs(p.lat-best_car->getItem().lat);
             if(distance<distance_bset)
@@ -833,12 +833,11 @@ void search_for_car(Passenger p,bool normal,char *coordinate,string time_tag)
                 }
             }
         }
-        //============================================================================================
         current=current->getNext();
     }
-    if(best_car==nullptr)
+    if(best_car==nullptr)                                   //if there is no car qualify
         return;
-    //============================================================================================
+    
     Car to_service=best_car->getItem();
     to_service.change_direction(time_tag,to_service.direction);
     to_service.isOn=true;
@@ -852,18 +851,18 @@ void search_for_car(Passenger p,bool normal,char *coordinate,string time_tag)
     //============================================================================================
 }
 
-bool check_CP(Car c,Passenger p,string time_tag)
+void check_CP(Car c,Passenger p,string time_tag)throw(logic_error)//check the statement of CP
 {
     int duration=minute_gap(c.time_tag,time_tag);
-    if(c.isSer==2&&p.isSer==1&&duration>0)
-        return true;
-    return false;
+    if(c.isSer==2&&p.isSer==1&&duration>=0)
+        return;
+    throw logic_error("...");
 }
 
-bool check_AD(Car c,Passenger p,string time_tag)
+void check_AD(Car c,Passenger p,string time_tag)throw(logic_error)//check the statement of AD
 {
     int duration=minute_gap(c.time_tag,time_tag);
-    if(c.isSer==3&&p.isSer==2&&duration>0)
-        return true;
-    return false;
+    if(c.isSer==3&&p.isSer==2&&duration>=0)
+        return;
+    throw logic_error("...");
 }
